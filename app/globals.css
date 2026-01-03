@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background-light: #FAF9F6;
+  --color-background-cream: #F7F3EE;
+  --color-brand-navy: #0B1A2E;
+  --color-brand-accent: #2C3E50;
+  --color-brand-accent-light: #3A506C;
+
+  --font-inter: var(--font-inter);
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  --animate-slide-up: slideUp 0.6s ease-out forwards;
+  --animate-fade-in: fadeIn 0.8s ease-out forwards;
+}
+
+:root {
+  --background: #FAF9F6;
+  --foreground: #0B1A2E;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0B1A2E;
+    --foreground: #FAF9F6;
+  }
+}
+
+* {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F5F1ED;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0B1A2E;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(11, 26, 46, 0.05);
+}
+
+.dark .glass {
+  background: rgba(10, 14, 39, 0.7);
+  border: 1px solid rgba(250, 248, 245, 0.05);
+}
