@@ -5,8 +5,6 @@ import {
   Mic,
   Zap,
   TrendingUp,
-  ChevronRight,
-  Play,
   CheckCircle2,
   ArrowRight,
   Menu,
@@ -162,9 +160,9 @@ const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
               <div className="w-20 h-20 bg-brand-accent/10 rounded-full flex items-center justify-center mx-auto mb-8">
                 <CheckCircle2 size={40} className="text-brand-accent" />
               </div>
-              <h3 className="text-3xl font-black text-brand-navy mb-4">You're on the list!</h3>
+              <h3 className="text-3xl font-black text-brand-navy mb-4">You&apos;re on the list!</h3>
               <p className="text-brand-navy/60 mb-8 leading-relaxed">
-                Thank you for your interest. We'll reach out to you at the provided email as soon as we're ready for you.
+                Thank you for your interest. We&apos;ll reach out to you at the provided email as soon as we&apos;re ready for you.
               </p>
               <button
                 onClick={onClose}
@@ -310,7 +308,7 @@ export default function Home() {
           <div className="container mx-auto px-6">
             <div className="max-w-4xl mx-auto">
               <h2 className="text-3xl md:text-5xl font-black text-brand-navy mb-16 text-center">
-                The Problem: <span className="text-brand-accent/70">Words Aren't Enough</span>
+                The Problem: <span className="text-brand-accent/70">Words Aren&apos;t Enough</span>
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
