@@ -373,24 +373,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Logo Section */}
-        <section className="py-24 bg-white overflow-hidden">
-          <div className="container mx-auto px-6">
-            <div className="text-center mb-12">
-              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-brand-navy/30 mb-4 animate-fade-in">Our Identity</h2>
-            </div>
-            <div className="relative w-full aspect-[2/1] md:aspect-[3/1] rounded-[3rem] overflow-hidden shadow-2xl shadow-brand-navy/5 border border-brand-navy/5 animate-fade-in bg-white/50">
-              <Image
-                src="/Tonetta Logo-Photoroom.png"
-                alt="Tonetta Brand Banner"
-                fill
-                className="object-contain p-12 md:p-20"
-                priority
-              />
-            </div>
-          </div>
-        </section>
-
         {/* Integration Section */}
         <section id="integrations" className="py-24 md:py-32">
           <div className="container mx-auto px-6 text-center">
@@ -422,7 +404,7 @@ export default function Home() {
                   your conversations?
                 </h2>
                 <p className="text-xl text-white/60 mb-12 max-w-xl mx-auto">
-                  Join 500+ high-performing sales teams using Tonetta.ai to master the art of tone.
+                  Join other high-performing sales teams using Tonetta.ai to master the art of tone.
                 </p>
                 <button
                   onClick={() => setIsWaitlistOpen(true)}
