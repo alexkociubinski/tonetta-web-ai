@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Tonetta.ai | Match their tone. Win their trust.",
   description: "AI-powered tone analysis for sales calls. Real-time tone intelligence to help you win more deals.",
+  icons: {
+    icon: "/tonetta_icon.png",
+  },
 };
 
 export default function RootLayout({
