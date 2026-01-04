@@ -25,6 +25,25 @@ const LogoIcon = ({ className }: { className?: string }) => (
   </div>
 );
 
+const Counter = ({ target, duration = 2000 }: { target: number; duration?: number }) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let startTimestamp: number | null = null;
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      setCount(Math.floor(progress * target));
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      }
+    };
+    window.requestAnimationFrame(step);
+  }, [target, duration]);
+
+  return <span>{count}%</span>;
+};
+
 const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -288,12 +307,12 @@ export default function Home() {
           <div className="container mx-auto px-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
               <div className="flex flex-col items-center md:items-start text-center md:text-left animate-slide-up [animation-delay:100ms] opacity-0 [animation-fill-mode:forwards]">
-                <span className="text-4xl font-black text-brand-accent mb-2">38%</span>
+                <span className="text-4xl font-black text-brand-accent mb-2"><Counter target={38} /></span>
                 <p className="text-sm font-semibold uppercase tracking-wider text-brand-navy/60">of communication is tone</p>
               </div>
               <div className="flex flex-col items-center md:items-start text-center md:text-left animate-slide-up [animation-delay:200ms] opacity-0 [animation-fill-mode:forwards]">
-                <span className="text-4xl font-black text-brand-accent mb-2">55%</span>
-                <p className="text-sm font-semibold uppercase tracking-wider text-brand-navy/60">body language lost in remote</p>
+                <span className="text-4xl font-black text-brand-accent mb-2"><Counter target={55} /></span>
+                <p className="text-sm font-semibold uppercase tracking-wider text-brand-navy/60">body language lost in remote calls</p>
               </div>
               <div className="flex flex-col items-center md:items-start text-center md:text-left animate-slide-up [animation-delay:300ms] opacity-0 [animation-fill-mode:forwards]">
                 <span className="text-4xl font-black text-brand-accent mb-2">Real-time</span>
