@@ -7,7 +7,8 @@
   --color-brand-accent: #2C3E50;
   --color-brand-accent-light: #3A506C;
 
-  --font-inter: var(--font-inter);
+  --font-geist-sans: var(--font-geist-sans);
+  --font-geist-mono: var(--font-geist-mono);
 
   @keyframes slideUp {
     from {
@@ -54,7 +55,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   overflow-x: hidden;
 }
 
