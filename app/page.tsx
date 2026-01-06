@@ -8,9 +8,16 @@ import {
   CheckCircle2,
   ArrowRight,
   Menu,
-  X
+  X,
+  Lock,
+  Mail,
+  User as UserIcon,
+  LogOut,
+  ChevronDown
 } from "lucide-react";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase";
+import { User } from "@supabase/supabase-js";
 
 const LogoIcon = ({ className }: { className?: string }) => (
   <div className={`relative ${className}`} style={{ width: '100%', height: '100%' }}>
@@ -44,49 +51,99 @@ const Counter = ({ target, duration = 2000 }: { target: number; duration?: numbe
   return <span>{count}%</span>;
 };
 
-const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const [submitted, setSubmitted] = useState(false);
+const AuthModal = ({ isOpen, onClose, initialMode = "signup" }: { isOpen: boolean; onClose: () => void; initialMode?: "signin" | "signup" }) => {
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    role: ""
-  });
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    setMode(initialMode);
+    setMessage(null);
+    setEmail("");
+    setPassword("");
+  }, [initialMode, isOpen]);
+
+  const toggleMode = () => {
+    setMode(mode === 'signup' ? 'signin' : 'signup');
+    setMessage(null);
+    setEmail("");
+    setPassword("");
+  };
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setMessage(null);
 
     try {
-      const response = await fetch('/api/waitlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      if (mode === 'signup') {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
 
-      const result = await response.json();
+        if (error) {
+          if (error.message.toLowerCase().includes("already registered") || error.message.toLowerCase().includes("already exists")) {
+            setMessage({ type: 'error', text: "Account already exists. Please sign in instead." });
+          } else {
+            throw error;
+          }
+          return;
+        }
 
-      if (result.result === 'success') {
-        setSubmitted(true);
+        // Handle case where identities is empty (user already exists but Supabase returns silent success)
+        if (data?.user?.identities?.length === 0) {
+          setMessage({ type: 'error', text: "Account already exists. Please sign in instead." });
+          return;
+        }
+
+        setMessage({ type: 'success', text: "Account created successfully! Welcome to Tonetta." });
+        setTimeout(() => {
+          onClose();
+        }, 1500);
       } else {
-        setError(result.error || "Something went wrong. Please try again.");
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+
+        setMessage({ type: 'success', text: "Successfully signed in! Redirecting..." });
+        setTimeout(() => {
+          onClose();
+        }, 1000);
       }
     } catch (err) {
-      setError("Failed to connect to the server. Please check your connection.");
+      const error = err as Error;
+      setMessage({ type: 'error', text: error.message || "An error occurred during authentication." });
     } finally {
       setLoading(false);
     }
   };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      const error = err as Error;
+      setMessage({ type: 'error', text: error.message || "An error occurred during Google Sign-In." });
+      setLoading(false);
+    }
   };
 
   return (
@@ -95,102 +152,131 @@ const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
         className="absolute inset-0 bg-brand-navy/60 backdrop-blur-md animate-fade-in"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-brand-navy/5">
+      <div className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-brand-navy/5 max-h-[95vh] flex flex-col">
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 text-brand-navy/40 hover:text-brand-navy transition-colors"
+          className="absolute top-5 right-5 p-2 text-brand-navy/40 hover:text-brand-navy transition-colors z-10"
         >
-          <X size={24} />
+          <X size={20} />
         </button>
 
-        <div className="p-8 md:p-12">
-          {!submitted ? (
-            <>
-              <div className="text-center mb-10">
-                <div className="w-16 h-16 bg-brand-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <LogoIcon className="w-10 h-10" />
-                </div>
-                <h3 className="text-3xl font-black text-brand-navy mb-4">Join the Waitlist</h3>
-                <p className="text-brand-navy/60">Be the first to master your tone and close more deals with Tonetta.ai.</p>
-              </div>
+        <div className="overflow-y-auto flex-1 p-5 md:p-8">
+          <div className="text-center mb-4">
+            <div className="w-12 h-12 bg-brand-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <LogoIcon className="w-8 h-8" />
+            </div>
+            <h3 className="text-2xl font-black text-brand-navy mb-1">
+              {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
+            </h3>
+            <p className="text-xs text-brand-navy/60">
+              {mode === 'signup'
+                ? 'Join Tonetta.ai and start mastering your tone today.'
+                : 'Sign in to your account to continue.'}
+            </p>
+          </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                  <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium">
-                    {error}
+          <div className="space-y-3">
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-2xl bg-white border border-brand-navy/10 hover:bg-background-light hover:border-brand-navy/20 transition-all font-bold text-brand-navy active:scale-[0.98] text-sm"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  fill="#EA4335"
+                />
+              </svg>
+              Continue with Google
+            </button>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-brand-navy/5"></div>
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+                <span className="bg-white px-4 text-brand-navy/20">Or continue with email</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleAuth} className="space-y-3">
+              <div className="min-h-[16px]">
+                {message && (
+                  <div className={`p-2.5 rounded-xl text-xs font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                    }`}>
+                    {message.text}
                   </div>
                 )}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-brand-navy/40 mb-2 ml-1">Full Name</label>
-                  <input
-                    required
-                    name="name"
-                    type="text"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="John Doe"
-                    className="w-full px-6 py-4 rounded-2xl bg-background-light border border-brand-navy/5 focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/5 focus:outline-none transition-all placeholder:text-brand-navy/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-brand-navy/40 mb-2 ml-1">Work Email</label>
-                  <input
-                    required
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="john@company.com"
-                    className="w-full px-6 py-4 rounded-2xl bg-background-light border border-brand-navy/5 focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/5 focus:outline-none transition-all placeholder:text-brand-navy/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-brand-navy/40 mb-2 ml-1">Role / Company</label>
-                  <input
-                    name="role"
-                    type="text"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    placeholder="Sales Leader @ Acme Inc."
-                    className="w-full px-6 py-4 rounded-2xl bg-background-light border border-brand-navy/5 focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/5 focus:outline-none transition-all placeholder:text-brand-navy/20"
-                  />
-                </div>
-                <button
-                  disabled={loading}
-                  type="submit"
-                  className="w-full bg-brand-navy text-white py-5 rounded-2xl font-black text-lg hover:bg-brand-navy/90 transition-all active:scale-[0.98] shadow-xl shadow-brand-navy/10 flex items-center justify-center gap-2 group mt-4"
-                >
-                  {loading ? (
-                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      Get Early Access
-                      <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                    </>
-                  )}
-                </button>
-                <p className="text-[10px] text-center text-brand-navy/30 mt-6 px-4">
-                  By joining, you agree to receive early access updates. We respect your inbox.
-                </p>
-              </form>
-            </>
-          ) : (
-            <div className="text-center py-10 animate-fade-in">
-              <div className="w-20 h-20 bg-brand-accent/10 rounded-full flex items-center justify-center mx-auto mb-8">
-                <CheckCircle2 size={40} className="text-brand-accent" />
               </div>
-              <h3 className="text-3xl font-black text-brand-navy mb-4">You&apos;re on the list!</h3>
-              <p className="text-brand-navy/60 mb-8 leading-relaxed">
-                Thank you for your interest. We&apos;ll reach out to you at the provided email as soon as we&apos;re ready for you.
-              </p>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-brand-navy/40 mb-1.5 ml-1">Email Address</label>
+                <div className="relative">
+                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-navy/20 w-4 h-4" />
+                  <input
+                    required
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="john@example.com"
+                    className="w-full pl-12 pr-6 py-3 rounded-2xl bg-background-light border border-brand-navy/5 focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/5 focus:outline-none transition-all placeholder:text-brand-navy/20 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-brand-navy/40 mb-1.5 ml-1">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-brand-navy/20 w-4 h-4" />
+                  <input
+                    required
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-12 pr-6 py-3 rounded-2xl bg-background-light border border-brand-navy/5 focus:border-brand-accent focus:ring-4 focus:ring-brand-accent/5 focus:outline-none transition-all placeholder:text-brand-navy/20 text-sm"
+                  />
+                </div>
+              </div>
+
               <button
-                onClick={onClose}
-                className="text-sm font-bold text-brand-accent hover:text-brand-accent/80 transition-colors"
+                disabled={loading}
+                type="submit"
+                className="w-full bg-brand-navy text-white py-4 rounded-2xl font-black text-base hover:bg-brand-navy/90 transition-all active:scale-[0.98] shadow-xl shadow-brand-navy/10 flex items-center justify-center gap-2 group mt-2"
               >
-                Back to site
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    {mode === 'signup' ? 'Create Account' : 'Sign In'}
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
               </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-brand-navy/40">
+                {mode === 'signup' ? 'Already have an account?' : "Don't have an account?"}{" "}
+                <button
+                  onClick={toggleMode}
+                  className="font-bold text-brand-accent hover:underline"
+                >
+                  {mode === 'signup' ? 'Sign In' : 'Create Account'}
+                </button>
+              </p>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
@@ -200,7 +286,30 @@ const WaitlistModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isWaitlistOpen, setIsWaitlistOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
+  const [user, setUser] = useState<User | null>(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const supabase = createClient();
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setIsUserMenuOpen(false);
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -230,12 +339,61 @@ export default function Home() {
             <a href="#problem" className="text-sm font-medium hover:text-brand-accent transition-colors">Problem</a>
             <a href="#features" className="text-sm font-medium hover:text-brand-accent transition-colors">Features</a>
             <a href="#integrations" className="text-sm font-medium hover:text-brand-accent transition-colors">Integrations</a>
-            <button
-              onClick={() => setIsWaitlistOpen(true)}
-              className="bg-brand-navy text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-brand-navy/90 transition-all active:scale-95 shadow-lg shadow-brand-navy/10"
-            >
-              Get Early Access
-            </button>
+
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-3 px-4 py-2 rounded-full border border-brand-navy/5 hover:bg-white hover:shadow-md transition-all group"
+                >
+                  <div className="w-8 h-8 rounded-full bg-brand-accent/10 flex items-center justify-center">
+                    <UserIcon size={16} className="text-brand-accent" />
+                  </div>
+                  <span className="text-sm font-bold text-brand-navy">{user.email?.split('@')[0]}</span>
+                  <ChevronDown size={16} className={`text-brand-navy/30 transition-transform duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isUserMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)} />
+                    <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-brand-navy/5 p-2 z-20 animate-fade-in scale-in-center">
+                      <div className="px-4 py-3 border-b border-brand-navy/5 mb-1">
+                        <p className="text-xs font-bold text-brand-navy/30 uppercase tracking-widest mb-1">Signed in as</p>
+                        <p className="text-sm font-bold text-brand-navy truncate">{user.email}</p>
+                      </div>
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors group"
+                      >
+                        <LogOut size={18} className="transition-transform group-hover:-translate-x-1" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    setAuthMode("signin");
+                    setIsAuthOpen(true);
+                  }}
+                  className="text-sm font-bold text-brand-navy hover:text-brand-accent transition-colors"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthMode("signup");
+                    setIsAuthOpen(true);
+                  }}
+                  className="bg-brand-navy text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-brand-navy/90 transition-all active:scale-95 shadow-lg shadow-brand-navy/10"
+                >
+                  Create Account
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile Toggle */}
@@ -253,15 +411,47 @@ export default function Home() {
             <a href="#problem" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Problem</a>
             <a href="#features" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Features</a>
             <a href="#integrations" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Integrations</a>
-            <button
-              onClick={() => {
-                setIsWaitlistOpen(true);
-                setMobileMenuOpen(false);
-              }}
-              className="bg-brand-navy text-white px-6 py-3 rounded-full font-semibold"
-            >
-              Get Early Access
-            </button>
+            {user ? (
+              <>
+                <div className="py-2 border-b border-brand-navy/5">
+                  <p className="text-xs font-bold text-brand-navy/30 uppercase tracking-widest mb-1">Signed in as</p>
+                  <p className="text-sm font-bold text-brand-navy">{user.email}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    handleSignOut();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 text-lg font-bold text-red-600 py-2"
+                >
+                  <LogOut size={20} />
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    setAuthMode("signin");
+                    setIsAuthOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-lg font-medium text-left"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthMode("signup");
+                    setIsAuthOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="bg-brand-navy text-white px-6 py-3 rounded-full font-semibold"
+                >
+                  Create Account
+                </button>
+              </>
+            )}
           </div>
         )}
       </nav>
@@ -292,10 +482,18 @@ export default function Home() {
 
             <div className="flex justify-center animate-fade-in [animation-delay:400ms]">
               <button
-                onClick={() => setIsWaitlistOpen(true)}
+                onClick={() => {
+                  if (user) {
+                    // Could scroll to features or dashboard
+                    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    setAuthMode("signup");
+                    setIsAuthOpen(true);
+                  }
+                }}
                 className="group bg-brand-navy text-white px-8 py-4 rounded-full text-lg font-bold flex items-center justify-center gap-2 hover:bg-brand-navy/90 transition-all hover:shadow-xl hover:shadow-brand-navy/20 active:scale-95"
               >
-                Get Early Access
+                {user ? 'View Features' : 'Get Started for Free'}
                 <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
               </button>
             </div>
@@ -419,18 +617,25 @@ export default function Home() {
 
               <div className="relative z-10">
                 <h2 className="text-4xl md:text-6xl font-black text-white mb-8">
-                  Ready to transform <br className="hidden md:block" />
-                  your conversations?
+                  {user ? "Ready to dominate?" : "Ready to transform"} <br className="hidden md:block" />
+                  {user ? "Start using Tonetta." : "your conversations?"}
                 </h2>
                 <p className="text-xl text-white/60 mb-12 max-w-xl mx-auto">
-                  Join other high-performing sales teams using Tonetta.ai to master the art of tone.
+                  {user
+                    ? `Welcome back, ${user.email?.split('@')[0]}. You're ready to master the art of tone.`
+                    : "Join other high-performing sales teams using Tonetta.ai to master the art of tone."}
                 </p>
-                <button
-                  onClick={() => setIsWaitlistOpen(true)}
-                  className="bg-white text-brand-navy px-10 py-5 rounded-full text-xl font-black hover:bg-background-light transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-black/20"
-                >
-                  Get Early Access
-                </button>
+                {!user && (
+                  <button
+                    onClick={() => {
+                      setAuthMode("signup");
+                      setIsAuthOpen(true);
+                    }}
+                    className="bg-white text-brand-navy px-10 py-5 rounded-full text-xl font-black hover:bg-background-light transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-black/20"
+                  >
+                    Create Your Account
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -455,9 +660,10 @@ export default function Home() {
           </div>
         </div>
       </footer>
-      <WaitlistModal
-        isOpen={isWaitlistOpen}
-        onClose={() => setIsWaitlistOpen(false)}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialMode={authMode}
       />
     </div>
   );
