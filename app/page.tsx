@@ -295,16 +295,21 @@ export default function Home() {
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    // Get initial session - use getSession for OAuth flows
+    // Get initial user - getUser() works better for OAuth flows
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
     };
     initAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+
+      // Force a refresh after sign in to ensure UI updates
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user);
+      }
     });
 
     return () => subscription.unsubscribe();
