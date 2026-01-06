@@ -310,6 +310,27 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
+  // Handle Auth Redirects (Success/Error)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authSuccess = params.get('auth_success');
+    const authError = params.get('auth_error');
+
+    if (authSuccess) {
+      if (!user) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          setUser(session?.user ?? null);
+        });
+      }
+      setTimeout(() => setIsAuthOpen(true), 0);
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (authError) {
+      setTimeout(() => setIsAuthOpen(true), 0);
+      alert(`Authentication Error: ${authError}`);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [supabase.auth, user]); // Only run on mount
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setIsUserMenuOpen(false);

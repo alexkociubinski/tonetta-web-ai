@@ -5,7 +5,6 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
-    // if "next" is in search params, use it as the redirection URL
     const next = searchParams.get('next') ?? '/'
 
     if (code) {
@@ -32,18 +31,23 @@ export async function GET(request: Request) {
                 },
             }
         )
+
         const { error } = await supabase.auth.exchangeCodeForSession(code)
+
         if (!error) {
             const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
             const isLocalEnv = process.env.NODE_ENV === 'development'
-            if (isLocalEnv) {
-                // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-                return NextResponse.redirect(`${origin}${next}`)
-            } else if (forwardedHost) {
-                return NextResponse.redirect(`https://${forwardedHost}${next}`)
-            } else {
-                return NextResponse.redirect(`${origin}${next}`)
+            let finalUrl = `${origin}${next}`
+            if (!isLocalEnv && forwardedHost) {
+                finalUrl = `https://${forwardedHost}${next}`
             }
+
+            // Append success param
+            const separator = finalUrl.includes('?') ? '&' : '?'
+            return NextResponse.redirect(`${finalUrl}${separator}auth_success=true`)
+        } else {
+            console.error('Auth Exchange Error:', error)
+            return NextResponse.redirect(`${origin}/?auth_error=${encodeURIComponent(error.message)}`)
         }
     }
 
