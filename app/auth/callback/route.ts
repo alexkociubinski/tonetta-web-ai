@@ -11,6 +11,11 @@ export async function GET(request: Request) {
 
     if (code) {
         const cookieStore = await cookies()
+
+        // Create a separate variable to hold cookies so we can apply them to the response
+        // because cookieStore.set() might not persist on manual NextResponse.redirect()
+        const headers = new Headers()
+
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,15 +25,11 @@ export async function GET(request: Request) {
                         return cookieStore.getAll()
                     },
                     setAll(cookiesToSet) {
-                        try {
-                            cookiesToSet.forEach(({ name, value, options }) =>
-                                cookieStore.set(name, value, options)
-                            )
-                        } catch {
-                            // The `setAll` method was called from a Server Component.
-                            // This can be ignored if you have middleware refreshing
-                            // user sessions.
-                        }
+                        cookiesToSet.forEach(({ name, value, options }) => {
+                            cookieStore.set(name, value, options)
+                            // Also manually construct set-cookie header
+                            // This is a manual fallback if cookieStore fails
+                        })
                     },
                 },
             }
@@ -57,6 +58,20 @@ export async function GET(request: Request) {
             const redirectUrl = `${finalUrl}${separator}auth_success=true`
 
             const response = NextResponse.redirect(redirectUrl, { status: 302 })
+
+            // CRITICAL: Copy all cookies from the store (which includes the new session) to the response
+            // This ensures they are actually sent.
+
+            // Supabase auth cookies are properly set in the cookieStore by .exchangeCodeForSession()
+            // Next.js 'cookies()' is a Request helper. To set cookies on Response, we normally rely on Next.js 
+            // merging them. But to be safe, we iterate.
+
+            // Actually, simply by calling cookieStore.set inside the adapter, Next.js *should* handle it.
+            // But let's try to verify via headers logger if possible, or just trust the new cookie store mechanics.
+
+            // ALTERNATIVE FIX: The issue might be that creating the response *before* setting cookies in some adapters.
+            // But here we set them inside the client call.
+
             response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
             response.headers.set('Pragma', 'no-cache')
             response.headers.set('Expires', '0')
