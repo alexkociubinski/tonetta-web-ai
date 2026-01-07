@@ -283,7 +283,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = "signup" }: { isOpen: boolea
     );
 };
 
-export default function HomeClient({ initialUser }: { initialUser: User | null }) {
+export default function HomeClient({ initialUser, debugInfo }: { initialUser: User | null; debugInfo?: { hasUser: boolean; cookieNames: string[] } }) {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -683,6 +683,11 @@ export default function HomeClient({ initialUser }: { initialUser: User | null }
                         <a href="#" className="text-sm font-bold text-brand-navy/60 hover:text-brand-accent transition-colors">Privacy</a>
                         <a href="#" className="text-sm font-bold text-brand-navy/60 hover:text-brand-accent transition-colors">Terms</a>
                     </div>
+                </div>
+
+                {/* Debug Info (Only visible if you know where to look) */}
+                <div className="container mx-auto px-6 mt-8 text-[10px] text-brand-navy/20 font-mono break-all">
+                    Debug: {user ? `User: ${user.id}` : 'No User'} | Server Cookies: {JSON.stringify(debugInfo?.cookieNames || [])}
                 </div>
             </footer>
             <AuthModal
