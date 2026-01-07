@@ -46,7 +46,13 @@ export async function GET(request: Request) {
 
             // Append success param
             const separator = finalUrl.includes('?') ? '&' : '?'
-            return NextResponse.redirect(`${finalUrl}${separator}auth_success=true`)
+            const redirectUrl = `${finalUrl}${separator}auth_success=true`
+
+            const response = NextResponse.redirect(redirectUrl, { status: 302 })
+            response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+            response.headers.set('Pragma', 'no-cache')
+            response.headers.set('Expires', '0')
+            return response
         } else {
             console.error('Auth Exchange Error:', error)
             return NextResponse.redirect(`${origin}/?auth_error=${encodeURIComponent(error.message)}`)
