@@ -11,10 +11,8 @@ export async function GET(request: Request) {
 
     if (code) {
         const cookieStore = await cookies()
-
-        // Create a separate variable to hold cookies so we can apply them to the response
-        // because cookieStore.set() might not persist on manual NextResponse.redirect()
-        const headers = new Headers()
+        // Array to hold cookies that need to be set on the response
+        let cookiesToSetOnResponse: { name: string, value: string, options: any }[] = []
 
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,11 +23,15 @@ export async function GET(request: Request) {
                         return cookieStore.getAll()
                     },
                     setAll(cookiesToSet) {
-                        cookiesToSet.forEach(({ name, value, options }) => {
-                            cookieStore.set(name, value, options)
-                            // Also manually construct set-cookie header
-                            // This is a manual fallback if cookieStore fails
-                        })
+                        // 1. Set on the request store (for immediate visibility if needed)
+                        try {
+                            cookiesToSet.forEach(({ name, value, options }) =>
+                                cookieStore.set(name, value, options)
+                            )
+                        } catch { }
+
+                        // 2. Capture for the response
+                        cookiesToSetOnResponse = cookiesToSet
                     },
                 },
             }
@@ -43,10 +45,12 @@ export async function GET(request: Request) {
 
             if (userError || !user) {
                 console.error('Auth Exchange Success but No User:', userError)
+                // Even if no user found immediately, we should still set the cookies in case it's just a timing/consistency issue
+                // but redirecting with error is safer.
                 return NextResponse.redirect(`${origin}/?auth_error=No%20User%20Found`, { status: 302 })
             }
 
-            const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
+            const forwardedHost = request.headers.get('x-forwarded-host')
             const isLocalEnv = process.env.NODE_ENV === 'development'
             let finalUrl = `${origin}${next}`
             if (!isLocalEnv && forwardedHost) {
@@ -59,18 +63,10 @@ export async function GET(request: Request) {
 
             const response = NextResponse.redirect(redirectUrl, { status: 302 })
 
-            // CRITICAL: Copy all cookies from the store (which includes the new session) to the response
-            // This ensures they are actually sent.
-
-            // Supabase auth cookies are properly set in the cookieStore by .exchangeCodeForSession()
-            // Next.js 'cookies()' is a Request helper. To set cookies on Response, we normally rely on Next.js 
-            // merging them. But to be safe, we iterate.
-
-            // Actually, simply by calling cookieStore.set inside the adapter, Next.js *should* handle it.
-            // But let's try to verify via headers logger if possible, or just trust the new cookie store mechanics.
-
-            // ALTERNATIVE FIX: The issue might be that creating the response *before* setting cookies in some adapters.
-            // But here we set them inside the client call.
+            // CRITICAL: Apply captured cookies to the actual response object
+            cookiesToSetOnResponse.forEach(({ name, value, options }) => {
+                response.cookies.set(name, value, options)
+            })
 
             response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
             response.headers.set('Pragma', 'no-cache')
