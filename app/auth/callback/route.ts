@@ -37,6 +37,14 @@ export async function GET(request: Request) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
+            // Explicitly check if the session was established
+            const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+            if (userError || !user) {
+                console.error('Auth Exchange Success but No User:', userError)
+                return NextResponse.redirect(`${origin}/?auth_error=No%20User%20Found`, { status: 302 })
+            }
+
             const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
             const isLocalEnv = process.env.NODE_ENV === 'development'
             let finalUrl = `${origin}${next}`
@@ -55,7 +63,7 @@ export async function GET(request: Request) {
             return response
         } else {
             console.error('Auth Exchange Error:', error)
-            return NextResponse.redirect(`${origin}/?auth_error=${encodeURIComponent(error.message)}`)
+            return NextResponse.redirect(`${origin}/?auth_error=${encodeURIComponent(error.message)}`, { status: 302 })
         }
     }
 
