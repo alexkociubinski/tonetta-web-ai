@@ -5,9 +5,20 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-    const { searchParams, origin } = new URL(request.url)
+    const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     const next = searchParams.get('next') ?? '/'
+
+    // CRITICAL: Determine the correct origin for production deployments
+    // On Vercel, request.url might resolve to an internal URL, but we need tonetta.ai
+    const forwardedHost = request.headers.get('x-forwarded-host')
+    const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
+    const isLocalEnv = process.env.NODE_ENV === 'development'
+
+    // Use forwarded host in production (Vercel), otherwise use request origin
+    const origin = (!isLocalEnv && forwardedHost)
+        ? `${forwardedProto}://${forwardedHost}`
+        : new URL(request.url).origin
 
     if (code) {
         const cookieStore = await cookies()
@@ -50,12 +61,8 @@ export async function GET(request: Request) {
                 return NextResponse.redirect(`${origin}/?auth_error=No%20User%20Found`, { status: 302 })
             }
 
-            const forwardedHost = request.headers.get('x-forwarded-host')
-            const isLocalEnv = process.env.NODE_ENV === 'development'
-            let finalUrl = `${origin}${next}`
-            if (!isLocalEnv && forwardedHost) {
-                finalUrl = `https://${forwardedHost}${next}`
-            }
+            // origin is now correctly computed at the top using x-forwarded-host
+            const finalUrl = `${origin}${next}`
 
             // Append success param
             const separator = finalUrl.includes('?') ? '&' : '?'
