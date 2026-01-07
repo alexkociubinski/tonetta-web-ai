@@ -320,7 +320,6 @@ export default function HomeClient({ initialUser, debugInfo }: { initialUser: Us
                     setUser(session?.user ?? null);
                 });
             }
-            setTimeout(() => setIsAuthOpen(true), 0);
             window.history.replaceState({}, '', window.location.pathname);
         } else if (authError) {
             setTimeout(() => setIsAuthOpen(true), 0);
